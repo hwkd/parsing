@@ -1,0 +1,15 @@
+<stmt> ::= <flag> <params>
+
+<flag> ::= "-" <char>+
+
+<char> ::= [0-9a-zA-Z]
+
+<params> ::= <positionalParam>+ <optionalParam>* <flagParam>*
+
+<positionalParam> ::= "<" <pname> ">"
+
+<optionalParam> ::= "[" <pname> "]"
+
+<flagParam> ::= "[" <flag> <pname> "]"
+
+<pname> ::= [a-zA-Z]+
