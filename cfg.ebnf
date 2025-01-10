@@ -4,12 +4,15 @@
 
 <char> ::= [0-9a-zA-Z]
 
-<params> ::= <positionalParam>+ <optionalParam>* <flagParam>*
+<params> ::= <flagParam>* <positionalParam>* <optionalParam>*
+           | <flagParam>* <positionalParam>* <positionalParamList>
 
 <positionalParam> ::= "<" <pname> ">"
 
 <optionalParam> ::= "[" <pname> "]"
 
 <flagParam> ::= "[" <flag> <pname> "]"
+
+<positionalParamList> ::= "<" <pname> ">..."
 
 <pname> ::= [a-zA-Z]+
