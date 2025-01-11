@@ -1,67 +1,93 @@
 package parser
 
+import "strings"
+
 type Node interface {
 }
 
 type StatementNode struct {
 	Flag   *FlagNode
-	Params []ParamNode
+	Params *ParamNode
 }
 
 type FlagNode struct {
 	Literal string
+	Fname   string
 }
 
-type ParamNode interface {
-	GetLiteral() string
-	GetName() string
+func newFlagNode(literal string) FlagNode {
+	return FlagNode{
+		Literal: literal,
+		Fname:   literal[1:],
+	}
 }
 
+type ParamNode struct {
+	FlagParams          []FlagParamNode
+	PositionalParams    []PositionalParamNode
+	OptionalParams      []OptionalParamNode
+	PositionalParamList *PositionalParamListNode
+}
+
+// PositionalParamNode
 type PositionalParamNode struct {
 	Literal string
+	Pname   string
 }
 
-func (p *PositionalParamNode) GetLiteral() string {
-	return p.Literal
+func newPositionalParamNode(literal string) PositionalParamNode {
+	return PositionalParamNode{
+		Literal: literal,
+		Pname:   literal[1 : len(literal)-1],
+	}
 }
 
-func (p *PositionalParamNode) GetName() string {
-	return p.Literal[1 : len(p.Literal)-1]
-}
-
+// PositionalParamListNode
 type PositionalParamListNode struct {
 	Literal string
+	Pname   string
 }
 
-func (p *PositionalParamListNode) GetLiteral() string {
-	return p.Literal
+func newPositionalParamListNode(literal string) PositionalParamListNode {
+	return PositionalParamListNode{
+		Literal: literal,
+		Pname:   literal[1 : len(literal)-4],
+	}
 }
 
-func (p *PositionalParamListNode) GetName() string {
-	return p.Literal[1 : len(p.Literal)-1]
-}
-
+// OptionalParamNode
 type OptionalParamNode struct {
 	Literal string
+	Pname   string
 }
 
-func (o *OptionalParamNode) GetLiteral() string {
-	return o.Literal
+func newOptionalParamNode(literal string) OptionalParamNode {
+	return OptionalParamNode{
+		Literal: literal,
+		Pname:   literal[1 : len(literal)-1],
+	}
 }
 
-func (o *OptionalParamNode) GetName() string {
-	return o.Literal[1 : len(o.Literal)-1]
-}
-
+// FlagParamNode
 type FlagParamNode struct {
 	Flag    *FlagNode
 	Literal string
+	Pname   string
 }
 
-func (f *FlagParamNode) GetLiteral() string {
-	return f.Literal
-}
-
-func (f *FlagParamNode) GetName() string {
-	return f.Literal[1 : len(f.Literal)-1]
+func newFlagParamNode(literal string) FlagParamNode {
+	i := strings.Index(literal, " ")
+	var flag FlagNode
+	var pname string
+	if i == -1 {
+		flag = newFlagNode(literal)
+	} else {
+		flag = newFlagNode(literal[:i])
+		pname = literal[len(flag.Literal)+1 : len(literal)-1]
+	}
+	return FlagParamNode{
+		Flag:    &flag,
+		Literal: literal,
+		Pname:   pname,
+	}
 }

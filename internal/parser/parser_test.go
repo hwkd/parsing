@@ -1,11 +1,10 @@
 package parser
 
 import (
-	"fmt"
 	"testing"
 )
 
-func TestParser(t *testing.T) {
+func TestLegalSyntax(t *testing.T) {
 	tests := []struct {
 		name  string
 		input string
@@ -28,9 +27,9 @@ func TestParser(t *testing.T) {
 				Flag: &FlagNode{
 					Literal: "-sp",
 				},
-				Params: []ParamNode{
-					&PositionalParamNode{
-						Literal: "<id>",
+				Params: &ParamNode{
+					PositionalParams: []PositionalParamNode{
+						{Literal: "<id>"},
 					},
 				},
 			},
@@ -42,12 +41,12 @@ func TestParser(t *testing.T) {
 				Flag: &FlagNode{
 					Literal: "-a",
 				},
-				Params: []ParamNode{
-					&PositionalParamNode{
-						Literal: "<title>",
+				Params: &ParamNode{
+					PositionalParams: []PositionalParamNode{
+						{Literal: "<title>"},
 					},
-					&OptionalParamNode{
-						Literal: "[description]",
+					OptionalParams: []OptionalParamNode{
+						{Literal: "[description]"},
 					},
 				},
 			},
@@ -59,12 +58,10 @@ func TestParser(t *testing.T) {
 				Flag: &FlagNode{
 					Literal: "-u",
 				},
-				Params: []ParamNode{
-					&FlagParamNode{
-						Literal: "[-t title]",
-					},
-					&FlagParamNode{
-						Literal: "[-d description]",
+				Params: &ParamNode{
+					FlagParams: []FlagParamNode{
+						{Literal: "[-t title]"},
+						{Literal: "[-d description]"},
 					},
 				},
 			},
@@ -76,8 +73,8 @@ func TestParser(t *testing.T) {
 				Flag: &FlagNode{
 					Literal: "-d",
 				},
-				Params: []ParamNode{
-					&PositionalParamListNode{
+				Params: &ParamNode{
+					PositionalParamList: &PositionalParamListNode{
 						Literal: "<id>...",
 					},
 				},
@@ -90,14 +87,12 @@ func TestParser(t *testing.T) {
 				Flag: &FlagNode{
 					Literal: "-x",
 				},
-				Params: []ParamNode{
-					&FlagParamNode{
-						Literal: "[-t title]",
+				Params: &ParamNode{
+					FlagParams: []FlagParamNode{
+						{Literal: "[-t title]"},
+						{Literal: "[-d description]"},
 					},
-					&FlagParamNode{
-						Literal: "[-d description]",
-					},
-					&PositionalParamListNode{
+					PositionalParamList: &PositionalParamListNode{
 						Literal: "<id>...",
 					},
 				},
@@ -114,20 +109,64 @@ func TestParser(t *testing.T) {
 			if got.Flag.Literal != tt.want.Flag.Literal {
 				t.Errorf("Expected '%s', got '%s'", tt.want.Flag.Literal, got.Flag.Literal)
 			}
-			if len(got.Params) != len(tt.want.Params) {
-				t.Fatalf("Expected '%d' params, got '%d'", len(tt.want.Params), len(got.Params))
-			}
-			fmt.Println(got.Params)
-			for i, param := range got.Params {
-				if param.GetLiteral() != tt.want.Params[i].GetLiteral() {
-					t.Errorf("Expected '%s', got '%s'", tt.want.Params[i].GetLiteral(), param.GetLiteral())
+			if tt.want.Params != nil {
+				a := tt.want.Params.PositionalParamList
+				b := got.Params.PositionalParamList
+
+				if a != nil && b == nil || a == nil && b != nil {
+					t.Fatalf("Expected '%v', got '%v'", a, b)
+				}
+
+				if a != nil && b != nil {
+					if a.Literal != b.Literal {
+						t.Errorf("Expected '%s', got '%s'", a.Literal, b.Literal)
+					}
+				}
+
+				if tt.want.Params.PositionalParams != nil {
+					a := tt.want.Params.PositionalParams
+					b := got.Params.PositionalParams
+					if len(a) != len(b) {
+						t.Fatalf("Expected '%d' positional params, got '%d'", len(a), len(b))
+					}
+					for i, param := range b {
+						if param.Literal != a[i].Literal {
+							t.Errorf("Expected '%s', got '%s'", a[i].Literal, param.Literal)
+						}
+					}
+				}
+
+				if tt.want.Params.OptionalParams != nil {
+					a := tt.want.Params.OptionalParams
+					b := got.Params.OptionalParams
+					if len(a) != len(b) {
+						t.Fatalf("Expected '%d' optional params, got '%d'", len(a), len(b))
+					}
+					for i, param := range b {
+						if param.Literal != a[i].Literal {
+							t.Errorf("Expected '%s', got '%s'", a[i].Literal, param.Literal)
+						}
+					}
+				}
+
+				if tt.want.Params.FlagParams != nil {
+					a := tt.want.Params.FlagParams
+					b := got.Params.FlagParams
+					if len(a) != len(b) {
+						t.Fatalf("Expected '%d' flag params, got '%d'", len(a), len(b))
+					}
+					for i, param := range b {
+						if param.Literal != a[i].Literal {
+							t.Errorf("Expected '%s', got '%s'", a[i].Literal, param.Literal)
+						}
+					}
 				}
 			}
 		})
 	}
 }
 
-func TestParserError(t *testing.T) {
+func TestIllegalSyntax(t *testing.T) {
 	tests := []struct {
 		name  string
 		input string
@@ -138,11 +177,23 @@ func TestParserError(t *testing.T) {
 		},
 		{
 			"positinal parameter after optional parameter",
-			"[description] <id>",
+			"-a [description] <id>",
 		},
 		{
 			"positional parameter list after optional parameter",
-			"[description] <id>...",
+			"-b [description] <id>...",
+		},
+		{
+			"flag parameter after optional parameter",
+			"-c [description] [-t title]",
+		},
+		{
+			"flag parameter after positional parameter",
+			"-d <id> [-t title]",
+		},
+		{
+			"flag parameter after positional parameter list",
+			"-e <id>... [-t title]",
 		},
 	}
 	for _, tt := range tests {

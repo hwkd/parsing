@@ -12,7 +12,7 @@ func (e ParseError) Error() string {
 	return fmt.Sprintf("%s at position %d", e.Message, e.Pos)
 }
 
-func New(message string, token Token) *ParseError {
+func NewParserError(message string, token Token) *ParseError {
 	return &ParseError{
 		Pos:     token.Pos,
 		Message: message,
@@ -53,15 +53,15 @@ func (p *parser) parseFlag() (*FlagNode, error) {
 		return nil, err
 	}
 	if token.Type != FLAG {
-		return nil, New("Expected flag, got something else", *token)
+		return nil, NewParserError("Expected flag, got something else", *token)
 	}
 	return &FlagNode{
 		Literal: token.Literal,
 	}, nil
 }
 
-func (p *parser) parseParams() ([]ParamNode, error) {
-	params := []ParamNode{}
+func (p *parser) parseParams() (*ParamNode, error) {
+	params := &ParamNode{}
 
 	for {
 		token, err := p.nextToken()
@@ -74,19 +74,51 @@ func (p *parser) parseParams() ([]ParamNode, error) {
 
 		switch token.Type {
 		case POSITIONAL_PARAM:
-			if err := assertPositionalBeforeOptionalParam(params, *token); err != nil {
+			err := assertNoPriorOptionalParam(
+				*params,
+				*token,
+				"Positional parameter cannot be after an optional parameter",
+			)
+			if err != nil {
 				return nil, err
 			}
-			params = append(params, &PositionalParamNode{Literal: token.Literal})
+			params.PositionalParams = append(
+				params.PositionalParams,
+				newPositionalParamNode(token.Literal),
+			)
 		case OPTIONAL_PARAM:
-			params = append(params, &OptionalParamNode{Literal: token.Literal})
-		case FLAG_PARAM:
-			params = append(params, &FlagParamNode{Literal: token.Literal})
-		case POSITIONAL_PARAM_LIST:
-			if err := assertPositionalBeforeOptionalParam(params, *token); err != nil {
+			err := assertNoPriorPositionalParamList(
+				*params,
+				*token,
+				"Optional parameter cannot be after a positional parameter list",
+			)
+			if err != nil {
 				return nil, err
 			}
-			params = append(params, &PositionalParamListNode{Literal: token.Literal})
+			node := OptionalParamNode{Literal: token.Literal}
+			params.OptionalParams = append(params.OptionalParams, node)
+		case FLAG_PARAM:
+			err := assertNoPriorParams(
+				*params,
+				*token,
+				"Flag parameter cannot be after a positional parameter",
+			)
+			if err != nil {
+				return nil, err
+			}
+			node := FlagParamNode{Literal: token.Literal}
+			params.FlagParams = append(params.FlagParams, node)
+		case POSITIONAL_PARAM_LIST:
+			err := assertNoPriorOptionalParam(
+				*params,
+				*token,
+				"Positional parameter list cannot be after an optional parameter",
+			)
+			if err != nil {
+				return nil, err
+			}
+			node := &PositionalParamListNode{Literal: token.Literal}
+			params.PositionalParamList = node
 		}
 	}
 
@@ -97,11 +129,30 @@ func (p *parser) nextToken() (*Token, error) {
 	return p.scanner.NextToken()
 }
 
-func assertPositionalBeforeOptionalParam(params []ParamNode, token Token) error {
-	if len(params) > 0 {
-		if _, ok := params[len(params)-1].(*OptionalParamNode); ok {
-			return New("Positional parameter cannot be after optional parameter", token)
-		}
+func assertNoPriorPositionalParams(params ParamNode, token Token, msg string) error {
+	if len(params.PositionalParams) > 0 || len(params.PositionalParamList.Literal) > 0 {
+		return NewParserError(msg, token)
+	}
+	return nil
+}
+
+func assertNoPriorPositionalParamList(params ParamNode, token Token, msg string) error {
+	if params.PositionalParamList != nil {
+		return NewParserError(msg, token)
+	}
+	return nil
+}
+
+func assertNoPriorOptionalParam(params ParamNode, token Token, msg string) error {
+	if len(params.OptionalParams) > 0 {
+		return NewParserError(msg, token)
+	}
+	return nil
+}
+
+func assertNoPriorParams(params ParamNode, token Token, msg string) error {
+	if len(params.PositionalParams) > 0 || len(params.OptionalParams) > 0 || params.PositionalParamList != nil {
+		return NewParserError(msg, token)
 	}
 	return nil
 }
