@@ -78,20 +78,29 @@ func (s *scanner) NextToken() (*Token, error) {
 		s.eatSpaces()
 		if s.ch == '-' {
 			s.read()
+			err := s.assertAlphaNumeric()
+			if err != nil {
+				return nil, err
+			}
 			flag := s.readCharacters()
 			s.eatSpaces()
-			err := s.assertAlphabet()
-			if err != nil {
-				return nil, err
+			if isAlphabet(s.ch) {
+				pname := s.readParamName()
+				s.eatSpaces()
+				err = s.assertRightSquareBracket()
+				if err != nil {
+					return nil, err
+				}
+				s.read()
+				return newToken(FLAG_PARAM, fmt.Sprintf("[-%s %s]", flag, pname), pos), nil
+			} else {
+				err = s.assertRightSquareBracket()
+				if err != nil {
+					return nil, err
+				}
+				s.read()
+				return newToken(FLAG_PARAM, fmt.Sprintf("[-%s]", flag), pos), nil
 			}
-			pname := s.readParamName()
-			s.eatSpaces()
-			err = s.assertRightSquareBracket()
-			if err != nil {
-				return nil, err
-			}
-			s.read()
-			return newToken(FLAG_PARAM, fmt.Sprintf("[-%s %s]", flag, pname), pos), nil
 		}
 		err := s.assertAlphabet()
 		if err != nil {

@@ -11,7 +11,7 @@
 
 <optionalParam> ::= "[" <pname> "]"
 
-<flagParam> ::= "[" <flag> <pname> "]"
+<flagParam> ::= "[" <flag> <pname>? "]"
 
 <positionalParamList> ::= "<" <pname> ">..."
 

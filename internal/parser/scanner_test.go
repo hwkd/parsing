@@ -26,6 +26,16 @@ func TestScanner(t *testing.T) {
 			},
 		},
 		{
+			"flag with flag params",
+			"-x [-y] [-z]",
+			[]Token{
+				{FLAG, "-x", 0},
+				{FLAG_PARAM, "[-y]", 3},
+				{FLAG_PARAM, "[-z]", 8},
+				{EOF, "", 12},
+			},
+		},
+		{
 			"flag with positional and optional param",
 			"-a <title> [description]",
 			[]Token{
